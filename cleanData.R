@@ -18,6 +18,9 @@ pastResults <- pastResults %>%
 pastResults <- pastResults %>% 
   mutate(Mark = gsub("\\*", "", Mark))
 
+pastResults <- pastResults %>% 
+  mutate(dob = dmy(dob))
+
 
 pastResults$Discipline[pastResults$Discipline == "10 Kilometres Road"] <- "10,000 Metres"
 
@@ -89,6 +92,7 @@ calculate_stats <- function(pageIn, date) {
   lastrace = max(dataSubset$Date)
   
   output <- tibble(
+        dob = dataSubset$dob[1],
         lastrace = lastrace,
          
          numMarathons = numMarathons,
@@ -128,6 +132,30 @@ LMAnalysisData <- LMAnalysisData %>%
   rowwise() %>%
   mutate(result = list(calculate_stats(page, date))) %>%
   unnest(result)
+
+LMAnalysisData <- LMAnalysisData %>% 
+  rename(raceDate = date,
+         Nat = Nat.,
+         lastRaceDate = lastrace)
+
+LMAnalysisData <- LMAnalysisData %>% 
+  mutate(age = raceDate - dob,
+         .before = Mark)
+
+
+LMAnalysisData <- LMAnalysisData %>%
+  mutate(
+    continent = case_when(
+      Nat %in% c("ETH", "KEN", "ERI", "RSA", "UGA") ~ "Africa",
+      Nat %in% c("GBR", "IRL", "BEL", "ESP", "UKR", "NED", "MDA", "ITA", "POR", 
+                 "POL", "GER", "AUT", "LTU", "FRA", "NOR", "ROU") ~ "Europe",
+      Nat %in% c("USA", "CAN", "BRA", "MEX", "PAR") ~ "Americas",
+      Nat %in% c("JPN", "IND", "CHN", "ISR", "BRN") ~ "Asia",
+      Nat %in% c("AUS") ~ "Oceania"
+    ), .before = sex
+  )
+
+
 
 
 

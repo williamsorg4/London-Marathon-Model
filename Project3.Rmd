@@ -7,6 +7,11 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+LMAnalysisData <- readRDS("C:/Users/William Sorg/OneDrive - The Ohio State University/SP25/STAT 4194 - Sports Statistics/Project 3/LMAnalysisData.rds")
+library(tidyverse)
+library(ggExtra)
+library(ggstatsplot)
+plotcolors <- c("#003049", "#D62828", "#fb5607", "#8338ec", "#7c6a0a")
 ```
 
 
@@ -18,21 +23,287 @@ Despite the marathons's significance, it's difficult to find statistically drive
 
 # Data Selection
 
-This project will use the 2018-2024 London Marathons to train and test different models with the goal of developing predictions for the 2025 London Marathon on April 27th. The London Marathon Elite runner results were scraped from each year's London Marathon results [website](https://results.tcslondonmarathon.com/2024). Then, for each athlete, every past race result was scraped off of the World Athletics [website](https://worldathletics.org/). From this data, statistics like PR and number of marathons run were calculated. All code for scraping can be found on my [GitHub](https://github.com/williamsorg4/London-Marathon-Model). (Note, scraping the data was the biggest time requirement of this project.)
+This project will use the 2018-2024 London Marathons to train and test different models with the goal of developing predictions for the 2025 London Marathon on April 27th. The London Marathon Elite runner results were scraped from each year's London Marathon results [website](https://results.tcslondonmarathon.com/2024). Then, for each athlete, every past race result was scraped off of the World Athletics [website](https://worldathletics.org/). From this data, several different statistics were calculated. These include number of races, number of finishes, PR, worst time, average time, time standard deviation, and most recent result for marathons, half marathons, and 10Ks. In total, this dataset contains 383 athletes when the 2025 elite field is included. All code for scraping can be found on my [GitHub](https://github.com/williamsorg4/London-Marathon-Model). (Note, scraping the data was the biggest time requirement of this project.)
 
-```{r dataGlimpse}
-
+```{r dataGlimpse, echo=FALSE}
+LMAnalysisData %>% 
+  select(-link, -page) %>% 
+  head()
 ```
-
-
 
 
 # Exploratory Analysis
 
+```{r EADist, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE, fig.align='default'}
+LMAnalysisData %>% 
+  ggplot(aes(x = sex, fill = !is.na(Mark))) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "Proportion of London Marathon Elite Runners who Don't Finish",
+    x = "Sex",
+    y = "Proportion",
+    fill = ""
+  ) +
+  scale_x_discrete(labels = c("Men", "Women")) +
+  scale_fill_manual(
+    values = plotcolors,
+    labels = c("TRUE" = "Finished", "FALSE" = "DNF")
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
 
 
+LMAnalysisData %>% 
+  filter(!is.na(Mark)) %>% 
+  ggplot(aes(x = Mark, fill = sex)) +
+  geom_density(alpha = 0.5) +
+  scale_x_time() +
+  labs(
+    title = "2018-2024 London Marathon Elite Finish Time Distributions",
+    y = "Density",
+    fill = "Sex"
+  ) +
+  scale_fill_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+
+```{r EAYear, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
+LMAnalysisData %>% 
+  ggplot(aes(x = as.factor(raceDate), y = Mark, colour =  sex)) +
+  geom_boxplot() +
+  scale_x_discrete(labels = function(x) year(x)) +
+  scale_y_time() +
+  labs(
+    title = "Elite London Marathon Race Times by Year",
+    x = "Year"
+  ) +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
 
 
+```{r EARegion, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE}
+LMAnalysisData %>% 
+  mutate(count = n(), .by = continent) %>% 
+  mutate(continent = fct_reorder(continent, desc(count))) %>% 
+  select(continent, count) %>% 
+  distinct() %>% 
+  ggplot(aes(x = continent, y = count, fill = continent)) +
+  geom_col() +
+  scale_fill_manual(values = plotcolors) +
+  labs(
+    title = "London Marathon Elite Runners by Region",
+    x = "Region",
+    y = "Count"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+
+LMAnalysisData %>% 
+  mutate(count = n(), .by = continent) %>% 
+  mutate(continent = fct_reorder(continent, desc(count))) %>% 
+  ggplot(aes(x = Mark, colour = continent)) +
+  geom_density() +
+  scale_x_time() +
+  labs(
+    title = "Elite London Marathon Race Times by Athlete Region",
+    x = "Time",
+    y = "Density",
+    color = "Region"
+  ) +
+  scale_color_manual(values = plotcolors) +
+  facet_wrap(~sex, labeller = labeller(sex = c("men" = "Men", "women" = "Women"))) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+
+```{r EAAge, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE, fig.align='default'}
+LMAnalysisData %>% 
+  filter(!is.na(Mark)) %>% 
+  ggplot(aes(x = age, y = Mark, color = sex)) +
+  geom_point() +
+  labs(
+    title = "London Marathon Elite Finishers Age vesus Time",
+    x = "Age"
+  ) +
+  facet_wrap(~sex, labeller = labeller(sex = c("men" = "Men", "women" = "Women"))) +
+  scale_x_continuous(labels = function(x) round(x / 365.25)) +
+  scale_y_time() +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'),
+        legend.position = 'none')
+
+
+LMAnalysisData %>% 
+  ggplot(aes(x = age, y = is.na(Mark), color = sex)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    title = "London Marathon Elite Runners Finish Status by Age",
+    x = "Age",
+    y = "Race Status"
+  ) +
+  facet_wrap(~sex, labeller = labeller(sex = c("men" = "Men", "women" = "Women"))) +
+  scale_x_continuous(labels = function(x) round(x / 365.25)) +
+  scale_y_discrete(labels = c("Finished", 'DNF')) +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'),
+        legend.position = 'none')
+```
+
+```{r EARaceCount, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
+timeVSnumMara <- LMAnalysisData %>% 
+  ggplot(aes(x = numMarathons, y = Mark, color = sex)) +
+  geom_point() +
+  labs(
+    title = "London Marathon Time versus Marathon Experience",
+    x = "Number of Marathons Run Before London"
+  ) +
+  scale_y_time() +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+ggMarginal(timeVSnumMara, type = 'histogram')
+```
+
+```{r EAHalfRaceCount, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
+timeVShalfMara <- LMAnalysisData %>% 
+  ggplot(aes(x = numHalfMarathons, y = Mark, color = sex)) +
+  geom_point() +
+  labs(
+    title = "London Marathon Time versus Half \nMarathon Experience",
+    x = "Number of Half Marathons Run Before London"
+  ) +
+  scale_y_time() +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+ggMarginal(timeVShalfMara, type = 'histogram')
+```
+
+
+```{r EAconversion, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE, fig.align='default'}
+LMAnalysisData %>% 
+  filter(is.finite(prMarathon) & is.finite(prHalfMarathon)) %>% 
+  ggplot(aes(x = avgMarathon, y = avgHalfMarathon)) +
+  geom_point() +
+  labs(
+    title = "Relationship between Marathon and Half Marathon Performance",
+    x = "Average Marathon Time",
+    y = "Average Half Marathon Time"
+  ) +
+  scale_x_time() +
+  scale_y_time() +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+LMAnalysisData %>% 
+  filter(is.finite(prMarathon) & is.finite(pr10k)) %>% 
+  ggplot(aes(x = avgMarathon, y = avg10k)) +
+  geom_point() +
+  labs(
+    title = "Relationship between Marathon and 10K Performance",
+    x = "Average Marathon Time",
+    y = "Average 10K Time"
+  ) +
+  scale_x_time() +
+  scale_y_time() +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+
+```{r EAConvertCorr, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
+LMAnalysisData %>% 
+  select(c(Mark, prMarathon, avgMarathon, worstMarathon, sdMarathon, prHalfMarathon, avgHalfMarathon, pr10k, avg10k)) %>% 
+  filter(if_all(everything(), ~ !is.na(.) & is.finite(.))) %>% 
+  ggcorrmat(title = "Correlation between Different Distances")
+```
+
+```{r EADNF, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE}
+LMAnalysisData %>% 
+  ggplot(aes(x = finishpctMarathons, y = is.na(Mark))) +
+  geom_jitter(width = 0, height = 0.25, alpha = 0.5) +
+  labs(
+    title = "London Marathon Finish Status versus Marathon Finish Percentage",
+    x = "Marathon Finish Percentage",
+    y = "Finish Status"
+  ) +
+  scale_y_discrete(labels = c("Finished", 'DNF')) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+
+LMAnalysisData %>% 
+  ggplot(aes(x = sdMarathon, y = is.na(Mark))) +
+  geom_jitter(width = 0, height = 0.25, alpha = 0.5) +
+  labs(
+    title = "London Marathon Finish Status versus Marathon Time Standard Deviation",
+    x = "Marathon Time Standard Deviation",
+    y = "Finish Status"
+  ) +
+  scale_y_discrete(labels = c("Finished", 'DNF')) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+
+```{r EADNFtTest}
+t.test(LMAnalysisData$finishpctMarathons[is.na(LMAnalysisData$Mark)],
+       LMAnalysisData$finishpctMarathons[!is.na(LMAnalysisData$Mark)])
+t.test(LMAnalysisData$sdMarathon[is.na(LMAnalysisData$Mark)],
+       LMAnalysisData$sdMarathon[!is.na(LMAnalysisData$Mark)])
+
+```
+
+```{r EAPlace, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
+LMAnalysisData %>% 
+  filter(sex == "men") %>% 
+  select(c(Place, prMarathon, avgMarathon, worstMarathon, sdMarathon, recentMarathon, prHalfMarathon, avgHalfMarathon, pr10k, avg10k)) %>% 
+  filter(if_all(everything(), ~ !is.na(.) & is.finite(.))) %>% 
+  ggcorrmat(title = "Men's Correlation between Place and Previous Performances")
+
+LMAnalysisData %>% 
+  filter(sex == "women") %>% 
+  select(c(Place, prMarathon, avgMarathon, worstMarathon, sdMarathon, recentMarathon, prHalfMarathon, avgHalfMarathon, pr10k, avg10k)) %>% 
+  filter(if_all(everything(), ~ !is.na(.) & is.finite(.))) %>% 
+  ggcorrmat(title = "Women's Correlation between Place and Previous Performances")
+```
+
+
+```{r EAracegap, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
+LMAnalysisData %>%
+  mutate(timesince = raceDate - lastRaceDate) %>% 
+  filter(!is.na(Place)) %>% 
+  ggplot(aes(x = timesince, y = Place)) +
+  geom_jitter(alpha = 0.4) +
+  labs(
+    title = "Relationship between London Marathon Place and the Time Since Last Race",
+    x = "Time Since Last Race (Days)",
+    y = "Finish Place"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+
+LMAnalysisData %>%
+  mutate(timesince = raceDate - lastRaceDate) %>% 
+  ggplot(aes(x = timesince, y = as.integer(is.na(Place)))) +
+  geom_jitter(alpha = 0.4, width = 0, height = 0.05) +
+  geom_smooth(method = 'glm', method.args = list(family = 'binomial'), se = FALSE) +
+  labs(
+    title = "Logistic Relationship between Finish Status and Time Since Last Race",
+    subtitle = "Points represent past London Marathon Elite Athletes",
+    x = "Time Since Last Race (Days)",
+    y = "Probability of Finishing the Marathon"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
 
 
 
