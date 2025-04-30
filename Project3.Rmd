@@ -11,6 +11,15 @@ LMAnalysisData <- readRDS("C:/Users/William Sorg/OneDrive - The Ohio State Unive
 library(tidyverse)
 library(ggExtra)
 library(ggstatsplot)
+library(DescTools)
+library(glmnet)
+library(e1071)
+library(randomForest)
+library(pls)
+library(caret)
+library(ggrepel)
+library(gt)
+library(gtExtras)
 plotcolors <- c("#003049", "#D62828", "#fb5607", "#8338ec", "#7c6a0a")
 ```
 
@@ -36,6 +45,7 @@ LMAnalysisData %>%
 
 ```{r EADist, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE, fig.align='default'}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = sex, fill = !is.na(Mark))) +
   geom_bar(position = "fill") +
   labs(
@@ -54,6 +64,7 @@ LMAnalysisData %>%
 
 
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   filter(!is.na(Mark)) %>% 
   ggplot(aes(x = Mark, fill = sex)) +
   geom_density(alpha = 0.5) +
@@ -70,6 +81,7 @@ LMAnalysisData %>%
 
 ```{r EAYear, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = as.factor(raceDate), y = Mark, colour =  sex)) +
   geom_boxplot() +
   scale_x_discrete(labels = function(x) year(x)) +
@@ -82,10 +94,14 @@ LMAnalysisData %>%
   theme_minimal() +
   theme(plot.title = element_text(face = 'bold'))
 ```
+\vspace{12pt}
 
+It appears that around 85% of elite runners don't finish the London Marathon, with women finishing at a marginally lower rate. Of the men who finish, the distribution of finish times is concentrated between 2:04 and 2:20. The distribution also appears to be somewhat bimodal with spikes at 2:05 and 2:15. This could be showcasing the difference between the typical lead pack and the rest of the elite field who may not be truly challenging for the win. For the women, most times are between 2:18 and 2:30. The women's times also tail off slower, with a noticeable number of finishers coming in a little under 2:40. The year by year races depict the variation between races. There isn't a noticeable trend over time outside of each year being unique. Some of this is likely caused by weather and elite field quality, but I believe it mostly comes down to race tactics. The London Marathon is able to consistently draw elite talent, so I don't believe one of these years would have a much lower or higher quality elite field. Also, 2022 for example, saw a fast women's race, but an average or below average men's race. If it were weather, I would expect both the men's and women's races to have the same trend. Overall, these plots show that some elite runners don't finish, that finish times vary, and that each race injects its own uniqueness.
 
+\newpage
 ```{r EARegion, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   mutate(count = n(), .by = continent) %>% 
   mutate(continent = fct_reorder(continent, desc(count))) %>% 
   select(continent, count) %>% 
@@ -103,6 +119,7 @@ LMAnalysisData %>%
 
 
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   mutate(count = n(), .by = continent) %>% 
   mutate(continent = fct_reorder(continent, desc(count))) %>% 
   ggplot(aes(x = Mark, colour = continent)) +
@@ -118,10 +135,19 @@ LMAnalysisData %>%
   facet_wrap(~sex, labeller = labeller(sex = c("men" = "Men", "women" = "Women"))) +
   theme_minimal() +
   theme(plot.title = element_text(face = 'bold'))
-```
 
+LMAnalysisData <- LMAnalysisData %>% 
+  mutate(Africa = continent == "Africa",
+         .before = sex)
+```
+\vspace{12pt}
+
+The London Marathon elite field is made up of mostly European and African athletes. Since 2018, the African athletes clearly tend to finish faster than everyone else. Outside of Africa, I don't think there is a noticeable trend by region, nor is there a large enough sample size for some of the regions to draw a conclusion. Because of this, I think it makes sense to evaluate by an athlete's region as Africa or rest of the world.
+
+\vspace{12pt}
 ```{r EAAge, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE, fig.align='default'}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   filter(!is.na(Mark)) %>% 
   ggplot(aes(x = age, y = Mark, color = sex)) +
   geom_point() +
@@ -139,6 +165,7 @@ LMAnalysisData %>%
 
 
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = age, y = is.na(Mark), color = sex)) +
   geom_point(alpha = 0.5) +
   labs(
@@ -154,9 +181,14 @@ LMAnalysisData %>%
   theme(plot.title = element_text(face = 'bold'),
         legend.position = 'none')
 ```
+\vspace{12pt}
 
+Based on these two plots, I don't see any discernible relationship between age and finish time. I still believe it may be interesting to cluster with age as an input, but I don't think age will be an important factor in determining who will win the London Marathon.
+
+\vspace{12pt}
 ```{r EARaceCount, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
 timeVSnumMara <- LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = numMarathons, y = Mark, color = sex)) +
   geom_point() +
   labs(
@@ -173,6 +205,7 @@ ggMarginal(timeVSnumMara, type = 'histogram')
 
 ```{r EAHalfRaceCount, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
 timeVShalfMara <- LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = numHalfMarathons, y = Mark, color = sex)) +
   geom_point() +
   labs(
@@ -186,8 +219,11 @@ timeVShalfMara <- LMAnalysisData %>%
 
 ggMarginal(timeVShalfMara, type = 'histogram')
 ```
+\vspace{12pt}
 
+Similar to age, the number of either marathons or half marathons run doesn't seem to have a large impact on race success. Again, I think it will still be interesting to use race experience to help cluster athletes so we can see which athletes are similar, but I don't think there is a clear takeaway from the above plots.
 
+\vspace{12pt}
 ```{r EAconversion, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE, fig.align='default'}
 LMAnalysisData %>% 
   filter(is.finite(prMarathon) & is.finite(prHalfMarathon)) %>% 
@@ -220,17 +256,22 @@ LMAnalysisData %>%
 
 ```{r EAConvertCorr, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   select(c(Mark, prMarathon, avgMarathon, worstMarathon, sdMarathon, prHalfMarathon, avgHalfMarathon, pr10k, avg10k)) %>% 
   filter(if_all(everything(), ~ !is.na(.) & is.finite(.))) %>% 
   ggcorrmat(title = "Correlation between Different Distances")
 ```
+\vspace{12pt}
+As one would expect, full and half marathon race times are closely related. 10k times are also closely related to marathon times, but there is a little more noise in the relationship. These relationships will be helpful creating variables with very few missing values. Every year at London, there are typically a few athletes making their marathon debut. Because of this, they don't have a marathon PR or any time for reference. Some years, these athletes could probably be removed from consideration. However, one of the favorites in the 2025 race is Jacob Kiplimo, who will be making his marathon debut. Kiplimo set the half marathon world record in February with a time of 56:42, so he definitely will be a factor in the race. To include Kiplimo and other debut runners, I will use a linear model to convert times between distances.
 
+\vspace{12pt}
 ```{r EADNF, echo=FALSE, message=FALSE, out.width="50%", warning=FALSE}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = finishpctMarathons, y = is.na(Mark))) +
   geom_jitter(width = 0, height = 0.25, alpha = 0.5) +
   labs(
-    title = "London Marathon Finish Status versus Marathon Finish Percentage",
+    title = "London Marathon Finish Status versus Marathon \nFinish Percentage",
     x = "Marathon Finish Percentage",
     y = "Finish Status"
   ) +
@@ -240,10 +281,11 @@ LMAnalysisData %>%
 
 
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   ggplot(aes(x = sdMarathon, y = is.na(Mark))) +
   geom_jitter(width = 0, height = 0.25, alpha = 0.5) +
   labs(
-    title = "London Marathon Finish Status versus Marathon Time Standard Deviation",
+    title = "London Marathon Finish Status versus Marathon Time \nStandard Deviation",
     x = "Marathon Time Standard Deviation",
     y = "Finish Status"
   ) +
@@ -251,32 +293,34 @@ LMAnalysisData %>%
   theme_minimal() +
   theme(plot.title = element_text(face = 'bold'))
 ```
+\vspace{12pt}
 
-```{r EADNFtTest}
-t.test(LMAnalysisData$finishpctMarathons[is.na(LMAnalysisData$Mark)],
-       LMAnalysisData$finishpctMarathons[!is.na(LMAnalysisData$Mark)])
-t.test(LMAnalysisData$sdMarathon[is.na(LMAnalysisData$Mark)],
-       LMAnalysisData$sdMarathon[!is.na(LMAnalysisData$Mark)])
+These plots show no significant evidence of a relationship between past DNFs or marathon consistency and not finishing the London Marathon. Based on this and previous plots, I think it will be difficult to correctly predict who won't finish the race. I also believe a probability prediction will also be more informative because I don't think many runners will have a discrete prediction of not finishing.
 
-```
-
+\vspace{12pt}
 ```{r EAPlace, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   filter(sex == "men") %>% 
   select(c(Place, prMarathon, avgMarathon, worstMarathon, sdMarathon, recentMarathon, prHalfMarathon, avgHalfMarathon, pr10k, avg10k)) %>% 
   filter(if_all(everything(), ~ !is.na(.) & is.finite(.))) %>% 
   ggcorrmat(title = "Men's Correlation between Place and Previous Performances")
 
 LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
   filter(sex == "women") %>% 
   select(c(Place, prMarathon, avgMarathon, worstMarathon, sdMarathon, recentMarathon, prHalfMarathon, avgHalfMarathon, pr10k, avg10k)) %>% 
   filter(if_all(everything(), ~ !is.na(.) & is.finite(.))) %>% 
   ggcorrmat(title = "Women's Correlation between Place and Previous Performances")
 ```
+\vspace{12pt}
 
+These correlation plots mainly focus on the correlation between previous times and finish place. It looks like PR times are possibly the best predictor of success. More noticeable is the weak relationship between worst marathon time and place. This makes sense though because some athletes probably haven't raced enough to have had a truly bad marathon time. Also, some athletes would rather drop out than finish the race slowly. Also, the insignificance of the marathon time standard deviation stands out.
 
+\vspace{12pt}
 ```{r EAracegap, echo=FALSE, message=FALSE, out.width="75%", warning=FALSE, fig.align='center'}
 LMAnalysisData %>%
+  filter(year(raceDate) != 2025) %>% 
   mutate(timesince = raceDate - lastRaceDate) %>% 
   filter(!is.na(Place)) %>% 
   ggplot(aes(x = timesince, y = Place)) +
@@ -291,6 +335,7 @@ LMAnalysisData %>%
 
 
 LMAnalysisData %>%
+  filter(year(raceDate) != 2025) %>% 
   mutate(timesince = raceDate - lastRaceDate) %>% 
   ggplot(aes(x = timesince, y = as.integer(is.na(Place)))) +
   geom_jitter(alpha = 0.4, width = 0, height = 0.05) +
@@ -303,23 +348,415 @@ LMAnalysisData %>%
   ) +
   theme_minimal() +
   theme(plot.title = element_text(face = 'bold'))
-```
 
+LMAnalysisData <- LMAnalysisData %>% 
+  mutate(finished = !is.na(Mark),
+         timesince = raceDate - lastRaceDate)
+```
+\vspace{12pt}
+Time since the last race doesn't seem to be a very helpful variable beyond highlighting athletes that haven't raced in an extremely long time. For this, though, I do think it could help inform predictions, especially for whether or not an athlete will finish the race.
 
 
 # Analysis
 
+For the race predictions, I want to look at the probability of finishing and then at the finish time and placement. First, though, I want to create a subset of the original dataset and fill in some missing values.
+
+## Subsetting Data
+
+```{r fillIn}
+HalftoFull <- lm(prMarathon ~ prHalfMarathon, data = LMAnalysisData %>% 
+                   filter(is.finite(prMarathon) & is.finite(prHalfMarathon)))
+HalftoFull
+tenktoFull <- lm(prMarathon ~ pr10k, data = LMAnalysisData %>% 
+                   filter(is.finite(prMarathon) & is.finite(pr10k)))
+tenktoFull
+```
+```{r applylinmodels, echo=FALSE}
+LMAnalysisData <- LMAnalysisData %>% 
+  mutate(marathonEffort = case_when(is.finite(prMarathon) ~ prMarathon,
+                                    is.finite(prHalfMarathon) ~ predict(HalftoFull, tibble(prHalfMarathon)),
+                                    is.finite(pr10k) ~ predict(tenktoFull, tibble(pr10k)),
+                                    .default = NA))
+LMAnalysisData %>% 
+  filter(Name == "Jacob KIPLIMO") %>% 
+  select(Name, Nat, prHalfMarathon, marathonEffort)
+```
+\vspace{12pt}
+After applying the conversions, Jacob Kiplimo's half marathon world record is converted into a 1:59:43. This would be a world record in its own right and seems a little ambitious, but I don't think it's that different from a 56:42 half, which he ran.
+\vspace{12pt}
+```{r subset, echo=FALSE}
+LMSubset <- LMAnalysisData %>% 
+  select(raceDate, Name, Africa, sex, Mark, Place, finished, marathonEffort, numMarathons, 
+         numHalfMarathons, timesince)
+
+LMSubset %>% head()
+```
+\vspace{12pt}
+
+```{r, include=FALSE}
+trainData <- LMSubset %>% 
+  filter(year(raceDate) != 2025) %>% 
+  mutate(Mark = as.numeric(Mark),
+         timesince = as.numeric(timesince),
+         finished = as.factor(finished))
+testdata <- LMSubset %>% 
+  filter(year(raceDate) == 2025) %>% 
+  mutate(Mark = as.numeric(Mark),
+         timesince = as.numeric(timesince))
+```
+
+
+## Will they finish?
+
+These models will attempt to predict whether or not an elite athlete will finish the London Marathon.
+
+### Elastic Net Logistic Regression
+```{r EN1}
+x <- data.matrix(trainData[,c(3:4, 8:11)])
+y <- trainData$finished
+
+
+ridge_lambda_out <- cv.glmnet(x, y, nfolds = 10, type.measure = "class",
+                              alpha = 0.5, family = 'binomial')
+
+lambda <- ridge_lambda_out$lambda.min
+
+ridge_out <- glmnet(x, y, alpha = 0.5,
+                    lambda = lambda,
+                    family = "binomial")
+
+ridge_out$beta
+```
+\vspace{12pt}
+These low beta values suggest that there isn't a very strong relationship between these variables and finishing the race. This is also seen in the predictions since the probability of finishing doesn't vary much.
+\vspace{12pt}
+```{r EN2, echo=FALSE, fig.align='center', out.width='75%'}
+preds <- predict(ridge_out, data.matrix(testdata[,c(3:4, 8:11)]), type = 'response')
+tibble(prediction = preds, actual = testdata$finished) %>% 
+  ggplot(aes(x = actual, y = prediction)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Elastic Net Finish Probability versus Actual for 2025 Race",
+       x = "Race Status",
+       y = "Predicted Finish Probability") +
+  scale_x_discrete(labels = c('DNF', "Finished")) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+
+
+### Naive Bayes
+
+```{r NB1}
+nbout <- naiveBayes(finished ~ sex + Africa + numMarathons + timesince,
+                    data = trainData, type = 'raw')
+```
+\vspace{12pt}
+The naive Bayes predictions are different from the prior model, but they don't appear any more accurate. Actually, they seem to be less realistic since I don't think it makes sense to have a less than 12.5% chance of finishing.
+\vspace{12pt}
+```{r nb2, fig.align='center', out.width='75%', echo=FALSE}
+preds <- predict(nbout, testdata, type = 'raw')[,2]
+
+tibble(prediction = preds, actual = testdata$finished) %>% 
+  ggplot(aes(x = actual, y = prediction)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Naive Bayes Finish Probability versus Actual for 2025 Race",
+       x = "Race Status",
+       y = "Predicted Finish Probability") +
+  scale_x_discrete(labels = c('DNF', "Finished")) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
 
 
 
+### Random Forest
+
+```{r rf1}
+rf1 <- randomForest(finished ~ sex + Africa + numMarathons + timesince,
+             data = trainData)
+rf1
+```
+\vspace{12pt}
+The random forest predictions seem more realistic than naive Bayes and have more range than the elastic net model. However, like the other two, the model does not perform particularly well on the 2025 race.
+\vspace{12pt}
+```{r rf2, echo=FALSE, fig.align='center', out.width='75%'}
+preds <- predict(rf1, testdata, type = 'prob')[,2]
+tibble(prediction = preds, actual = testdata$finished) %>% 
+  ggplot(aes(x = actual, y = prediction)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Random Forest Finish Probability versus Actual for 2025 Race",
+       x = "Race Status",
+       y = "Predicted Finish Probability") +
+  scale_x_discrete(labels = c('DNF', "Finished")) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+\vspace{12pt}
+Overall, the poor accuracy of these models isn't surprising given the exploratory analysis. It didn't seem like there were any variables with a strong correlation with not finishing. Because of this, it's nearly impossible to construct a model that performs well. I think it's probably more accurate to assume that all elite runners have the same probability of not finishing.
+\vspace{12pt}
+
+## Finish Time Predictions
+
+### Elastic Net Regression
+
+```{r eNet1}
+x <- data.matrix(trainData %>% 
+                   filter(!is.na(Mark)) %>% 
+                          .[,c(3:4, 8:11)])
+y <- trainData %>% 
+  filter(!is.na(Mark)) %>% 
+  pull(Mark)
+
+ridge_lambda_out <- cv.glmnet(x, y,  nfolds = 10,
+                              type.measure = 'mse', alpha = 0.5, family="gaussian")
+lambda <- ridge_lambda_out$lambda.min
+
+ridgeMark <- glmnet(x, y, alpha = 0.5,
+                    lambda = lambda,
+                    family = "gaussian")
+ridgeMark$beta
+```
+\vspace{12pt}
+As one would expect, sex is an important predictor of finish time. I also think their best converted marathon is probably undervalued because the Africa variable captures a similar thing. It's a little disappointing that the number of marathons or half marathons isn't that important. I think it would be interesting if experience impacted performance on this stage, but it doesn't seem to. Overall, the predictions seem to be pretty evenly split between over- and underestimating. A RMSE of approximately 275 seconds (4:35) isn't great, but it doesn't seem like there were many outlier performances. 
+\vspace{12pt}
+```{r eNet2, echo=FALSE, fig.align='center', out.width='75%', warning=FALSE}
+preds <- predict(ridgeMark, data.matrix(testdata[,c(3:4, 8:11)]), type = 'response')
+paste("RMSE:", RMSE(preds, testdata$Mark, na.rm = TRUE))
+
+testdata %>% 
+  add_column(prediction = preds[,1]) %>% 
+  ggplot(aes(x = Mark, y = prediction, label = Name, color = prediction > Mark)) +
+  geom_point() +
+  geom_text_repel(max.overlaps = 7) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(title = "Elastic Net Time Prediction versus Actual for 2025 Race",
+       y = "Prediction",
+       x = "Mark") +
+  scale_x_time() +
+  scale_y_time() +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'),
+        legend.position = 'none')
+```
+
+### Random Forest
+
+```{r rfmark}
+rfMark <- randomForest(Mark ~ sex + marathonEffort + Africa + timesince, data = trainData %>% filter(!is.na(Mark)))
+```
+\vspace{12pt}
+The accuracy of the random forest model is not great and is a little concerning. It appears that most of the fast times were considered overperformers while low times were considered underperformers. I believe this is happening because of the small dataset and the fact that both men and women are included together. Because of this, previous women's times are pulling men's predictions back while previous men's times are pushing women's predictions forward.
+\vspace{12pt}
+```{r rfmark2, echo=FALSE, fig.align='center', out.width='75%', warning=FALSE}
+preds <- predict(rfMark, testdata)
+paste("RMSE:", RMSE(preds, testdata$Mark, na.rm = TRUE))
+
+testdata %>% 
+  add_column(prediction = preds) %>% 
+  ggplot(aes(x = Mark, y = prediction, label = Name, color = prediction > Mark)) +
+  geom_point() +
+  geom_text_repel(max.overlaps = 7) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(title = "Random Forest Prediction versus Actual for 2025 Race",
+       y = "Prediction",
+       x = "Mark") +
+  scale_x_time() +
+  scale_y_time() +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'),
+        legend.position = 'none')
+```
+
+### Principal Component Regression
+
+```{r pcr1}
+pcrMark <- pcr(Mark ~ sex + marathonEffort + Africa + timesince + numMarathons, data = trainData %>% filter(!is.na(Mark)))
+
+```
+\vspace{12pt}
+The PCR accuracy is similar to the linear regression. Prediction error appears to be pretty consistent and individual predictions seem similar to before. Oddly enough, the model did very well on predicting Jacob Kiplimo and Alex Yee, two men who debuted in the marathon.
+\vspace{12pt}
+```{r pcr2, echo=FALSE, fig.align='center', out.width='75%', warning=FALSE}
+preds <- predict(pcrMark, testdata)[,,1]
+paste("RMSE:", RMSE(preds, testdata$Mark, na.rm = TRUE))
+
+RMSE(preds, testdata$Mark, na.rm = TRUE)
+testdata %>% 
+  add_column(prediction = preds) %>% 
+  ggplot(aes(x = Mark, y = prediction, label = Name, color = prediction > Mark)) +
+  geom_point() +
+  geom_text_repel(max.overlaps = 7) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  labs(title = "PCR Prediction versus Actual for 2025 Race",
+       y = "Prediction",
+       x = "Mark") +
+  scale_x_time() +
+  scale_y_time() +
+  scale_color_manual(values = plotcolors) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'),
+        legend.position = 'none')
+
+```
+\vspace{12pt}
+All in all, in think there is more for predicting finishing time than there is predicting if someone will finish. Multiple linear regression and PCR both perform fairly well across the board. 
+
+
+## Win Probability
+
+```{r, include=FALSE}
+trainData <- trainData %>% 
+  mutate(win = as.factor(case_when(Place == 1 ~ TRUE,
+                                   .default = FALSE)))
+
+testdata <- testdata %>% 
+  mutate(win = as.factor(case_when(Place == 1 ~ TRUE,
+                                   .default = FALSE)))
+```
+
+### Logistic Regression
+
+```{r lmWin}
+lmWin <- glm(win ~ sex + marathonEffort + Africa + timesince, data = trainData, family = 'binomial')
+lmWin
+```
+\vspace{12pt}
+This logistic model performed much better on the 2025 London Marathon than I anticipated. There is a clear decrease in pre-race win probability as a runner's finish place increases. In the men's race, the runner-up, Kiplimo, had the best odds of winning. The winner, Sebastian Sawe, had the third best odds of winning. In the women's race, Tigst Assefa was the clear favorite and won. 
+\vspace{12pt}
+```{r lmWin2, warning=FALSE, echo=FALSE, fig.align='center', out.width='75%'}
+preds <- predict(lmWin, testdata, type = 'response')
+
+testdata %>% 
+  add_column(prediction = preds) %>% 
+  group_by(sex) %>% 
+  mutate(prediction = prediction / sum(prediction)) %>% 
+  ggplot(aes(x = Place, y = prediction)) +
+  geom_point() +
+  facet_wrap(~sex, scales = 'free_x') +
+  labs(title = "Logistic Model Win Probability for the 2025 London Marathon versus Result",
+       x = "Place",
+       y = "Win Probability") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+
+
+### Random Forest
+
+```{r rfwin}
+menWin <- randomForest(win ~ sex + marathonEffort + Africa + timesince, data = trainData %>% filter(sex == "men"))
+womenWin <- randomForest(win ~ sex + marathonEffort + Africa + timesince, data = trainData %>% filter(sex == "women"))
+```
+The random forest predictions aren't as accurate at logistic regression. In the men's race, the model gives Kipchoge a much higher probability of winning than before. This makes sense because he has the best PR in the field, but as a fan, it is clear that his career is winding down. After his poor showing at the Olympics, picking Kipchoge as the favorite doesn't seem very logical. The women's race, however, makes even less sense. Tigst Assefa having that low of a win probability is a red flag. The former world record holder was a clear contender going into the race. Sifan Hassan having a high probability of winning isn't that crazy and actually is closer to the betting odds via [Bovada](https://www.letsrun.com/news/2025/04/2025-london-marathon-betting-odds/), which implied a 63.6% percent chance of winning.}
+```{r rfwin2, warning=FALSE, echo=FALSE, out.width='50%'}
+preds <- predict(menWin, testdata %>% filter(sex == "men"), type = 'prob')[,2]
+
+testdata %>% 
+  filter(sex == "men") %>% 
+  add_column(prediction = preds) %>% 
+  mutate(prediction = prediction / sum(preds)) %>% 
+  ggplot(aes(x = Place, y = prediction)) +
+  geom_point() +
+  geom_text_repel(aes(label = Name)) +
+  labs(title = "Random Forest Men's Winning Probability versus Result",
+       x = "Place",
+       y = "Win Probability") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+
+
+preds <- predict(womenWin, testdata %>% filter(sex == "women"), type = 'prob')[,2]
+
+testdata %>% 
+  filter(sex == "women") %>% 
+  add_column(prediction = preds) %>% 
+  mutate(prediction = prediction / sum(preds)) %>% 
+  ggplot(aes(x = Place, y = prediction)) +
+  geom_point() +
+  geom_text_repel(aes(label = Name)) +
+  labs(title = "Random Forest Women's Winning Probability versus Result",
+       x = "Place",
+       y = "Win Probability") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = 'bold'))
+```
+Between these two models, I think it's clear that the logistic regression performed better on the 2025 race. It gave the eventual winners good pre-race odds, and other top finishers had high probabilities as well. 
+
+# Recommendations     
+
+Considering everything in this project, I believe the biggest takeaway is the difficulty in predicting elite marathon performance. First, trying to determine who will DNF produced very few valuable insights. It seemed like everyone in the elite field had a similar probability of finishing. In the future, I would like to look at other marathons to see if this is true for marathons in general. Since London is flat, I don't think there is as big of a DNF factor. For courses like New York and Boston, with a lot of elevation change, I could see DNFs being more prominent. I also think they may be easier to predict by looking at past performances on difficult courses or cross country. But for London and other flat marathons, I think the past finish percentage may be the best estimate of everyone's probability of finishing.   
+As for time predictions, the models seemed to perform all right in general as the RMSE was mostly around five minutes. This isn't overly precise, but it does give some concept of expected performance of an athlete. If someone was new to the sport, these projections would give them enough information to understand the race. However, for those who follow the sport, I don't think these projections offer enough accuracy to be that informative.      
+Lastly, the win percentage models gave the most encouraging results. They performed pretty well on the 2025 London Marathon, especially in the women's race. The logistic model gave eventual winner Tigst Assefa the highest win probability. It also gave Jepkosgei, the runner-up,  the second-highest win probability despite the public heavily favoring Sifan Hassan. In the men's race, it gave the second-place finisher Kiplimo the best odds and the eventual champion, Sawe, the fourth-best odds. 
+
+\vspace{12pt} 
+```{r tables, echo=FALSE}
+winprob <- predict(lmWin, testdata, type = 'response')
+timepred <- predict(ridgeMark, data.matrix(testdata[,c(3:4, 8:11)]), type = 'response')[,1]
+
+raceModels <- testdata %>% 
+  add_column(`Win Probability` = winprob,
+             `Time Prediction` = timepred) %>% 
+  group_by(sex) %>% 
+  mutate(`Win Probability` = `Win Probability` / sum(`Win Probability`)) %>% 
+  select(Name, sex, Mark, Place, `Win Probability`, `Time Prediction`)
+
+
+raceModels %>% 
+  ungroup() %>% 
+  filter(sex == "men") %>% 
+  arrange(Place) %>% 
+  head(10) %>% 
+  mutate(Time = Mark) %>% 
+  select(Place, Name, Time, `Time Prediction`, `Win Probability`) %>% 
+  gt() %>% 
+  tab_header("Men's 2025 London Marathon Results") %>% 
+  tab_source_note("Time prediction from elastic net model and win probability from logistic regression.") %>% 
+  tab_style(locations = cells_body(columns = Name),
+            style = cell_text(weight = 'bold')) %>% 
+  fmt(  # Format Mark column as HH:MM:SS
+    columns = c(Time, `Time Prediction`),
+    fns = function(x) {
+      hrs <- as.integer(x %/% 3600)
+      mins <- as.integer((x %% 3600) %/% 60)
+      secs <- as.integer(x %% 60)
+      paste0(hrs, ":", sprintf("%02d:%02d", mins, secs))
+    }
+  ) %>% 
+  fmt_percent(columns = `Win Probability`, decimals = 2) %>% 
+  gt_theme_538()
 
 
 
+raceModels %>% 
+  ungroup() %>% 
+  filter(sex == "women") %>% 
+  arrange(Place) %>% 
+  head(10) %>% 
+  mutate(Time = Mark) %>% 
+  select(Place, Name, Time, `Time Prediction`, `Win Probability`) %>% 
+  gt() %>% 
+  tab_header("Women's 2025 London Marathon Results") %>% 
+  tab_style(locations = cells_body(columns = Name),
+            style = cell_text(weight = 'bold')) %>% 
+  fmt(  # Format Mark column as HH:MM:SS
+    columns = c(Time, `Time Prediction`),
+    fns = function(x) {
+      hrs <- as.integer(x %/% 3600)
+      mins <- as.integer((x %% 3600) %/% 60)
+      secs <- as.integer(x %% 60)
+      paste0(hrs, ":", sprintf("%02d:%02d", mins, secs))
+    }
+  ) %>% 
+  fmt_percent(columns = `Win Probability`, decimals = 2) %>% 
+  gt_theme_538()
+```
+\vspace{12pt} 
+Overall, I believe this project is a good starting point for future analysis in the sport of running. One of the main limitations of this project was the small sample size. I think finding ways to use more data, whether it's finding similar races or conversions between races, will help improve accuracy and highlight trends in the data. In addition to that, I think factoring in weather could be beneficial. London isn't exactly known for harsh conditions, but adjusting times on slightly hotter years may give us a better idea of what times to expect. Also, I think it would be interesting to factor in race styles to predict the race outcome. For example, if the elite field is full of runners who don't like to lead, the race may be slower than if a runner like Connor Mantz is up front keeping the pace honest. Along the same lines, if the elite field is full of a lot of 2:04 guys who can't kick, the slowest one probably doesn't have a great shot at winning. However, I would argue a 2:06 guy with a fast 10k time is more likely to win because they are stylistically different. It's these complexities that I would like to focus on because ultimately, the runners' times are not independent of each other. Another element that I believe should be incorporated is the runner's age and performance curves. Essentially, projecting when athletes will peak and when their performances will begin to worsen. I think this would've helped with predicting Kipchoge's performance this year because he has the fastest PR, but is out of his prime.
 
+The goal of this project was to begin to address the void in running statistics for improving the viewing experience. Win probability, point totals, and other projections are commonplace in most major sports, but elite running hasn't adopted this yet. While data is used extensively in training, very little data is used to improve fan experience and knowledge. For these reasons, I will continue to work on models that predict athlete performance in the marathon and, eventually, other distances. The biggest challenge with this goal, and with this project specifically, is the data collection. Most athletes have their race history on the World Athletics website. However, they offer no API access, so researchers have to resort to scraping. This is particularly difficult given their website layout and the fact that they change their website fairly often (they changed while I was scraping data for this project).    
 
-# Recommendations
+The other, and larger challenge, is the lack of data on how athletes are training. For most athletes, we don't see their weekly mileage or the times they are hitting in workouts. On top of that, there isn't an injury report like in the NBA, so spectators have no idea if someone is showing up to the starting line injured. This is fairly common since most athletes receive appearance fees for just showing up to these races. This lack of transparency in training makes it difficult to predict who's going to race well. 
 
-
-
-
-
+In conclusion, this project only scratched the surface of what I believe is possible in running analytics. With some of the trends identified in this project, future analysis will be able to build and add complexity for better results. These improved predictions will allow fans of the sport to be more knowledgeable and will hopefully help grow interest in running.

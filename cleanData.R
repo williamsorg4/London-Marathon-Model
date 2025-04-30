@@ -3,24 +3,27 @@ library(lubridate)
 
 LMAnalysisData <- lmEliteResults %>% 
   select(-c(Age, `Birth Date`)) %>% 
-  bind_rows(elite2025 %>% 
-              mutate(Mark = NA,
-                     Place = NA))
+  bind_rows(elite2025[c(1:7, 36)])
 
 LMAnalysisData <- LMAnalysisData %>% 
   mutate(Mark = seconds(hms(Mark)))
 
 pastResults <- pastResults %>% 
-  mutate(Date = dmy(Date)) %>% 
-  select(1:7) %>% 
+  mutate(Date = dmy(date)) %>% 
   distinct()
 
 pastResults <- pastResults %>% 
-  mutate(Mark = gsub("\\*", "", Mark))
+  mutate(Mark = gsub("\\*", "", performance))
 
 pastResults <- pastResults %>% 
   mutate(dob = dmy(dob))
 
+pastResults <- pastResults %>% 
+  select(-performance) %>% 
+  rename(Discipline = discipline)
+
+pastResults <- pastResults %>% 
+  select(-date)
 
 pastResults$Discipline[pastResults$Discipline == "10 Kilometres Road"] <- "10,000 Metres"
 
@@ -128,17 +131,22 @@ calculate_stats <- function(pageIn, date) {
 
 
 
-LMAnalysisData <- LMAnalysisData %>% 
+
+elite2025 <- elite2025 %>% 
   rowwise() %>%
-  mutate(result = list(calculate_stats(page, date))) %>%
+  mutate(result = list(calculate_stats(page, raceDate))) %>%
   unnest(result)
 
-LMAnalysisData <- LMAnalysisData %>% 
+elite2025 <- elite2025 %>% 
+  select(1:8, continent, sex)
+
+
+elite2025 <- elite2025 %>% 
   rename(raceDate = date,
          Nat = Nat.,
          lastRaceDate = lastrace)
 
-LMAnalysisData <- LMAnalysisData %>% 
+elite2025 <- elite2025 %>% 
   mutate(age = raceDate - dob,
          .before = Mark)
 
@@ -154,6 +162,46 @@ LMAnalysisData <- LMAnalysisData %>%
       Nat %in% c("AUS") ~ "Oceania"
     ), .before = sex
   )
+elite2025 <- elite2025 %>% 
+  filter(RaceStatus != "Not Started")
+
+elite2025 <- elite2025 %>% 
+  rename(Mark = Finish,
+         Place = `Place gender`) %>% 
+  select(-c(RaceStatus))
+
+
+elite2025 <- elite2025 %>%
+  mutate(sex = case_when(
+    Name %in% c(
+      "Megertu ALEMU", "Holly ARCHER", "Tigst ASSEFA", "Molly BOOKMYER", "Phily BOWDEN",
+      "Vivian Jepkemei CHERUIYOT", "Stella CHESANG", "Haven Hailu DESSE", "Rose HARVEY",
+      "Sifan HASSAN", "Joyciline JEPKOSGEI", "Eilish MCCOLGAN", "Charlotte PURDUE",
+      "Susanna SULLIVAN", "Sofiia YAREMCHUK"
+    ) ~ "women",
+    
+    Name %in% c(
+      "Jacob ALLEN", "Carl AVERY", "David BISHOP", "Ross BRADEN", "Andrew BUCHANAN",
+      "Luke CALDWELL", "Yemaneberhan CRIPPA", "Mohamed ESA", "Weynay GHEBRESILASIE",
+      "Andrew HEYES", "James HOAD", "Sean HOGAN", "Eliud KIPCHOGE", "Hillary KIPKOECH",
+      "Timothy KIPLAGAT", "Jacob KIPLIMO", "Marcelo LAGUERA", "Alexander LEPRETRE",
+      "Adam LIPSCHITZ", "Mahamed MAHAMED", "Jonathan MELLOR", "Milkesa MENGESHA",
+      "Alex MILNE", "Sondre Nordstad MOEN", "Alexander MUNYAO", "William MYCROFT",
+      "Abdi NAGEEYE", "Amanal PETROS", "Jack ROWE", "Kevin SALVANO", "Sabastian SAWE",
+      "Philip SESEMANN", "Jake SMITH", "Logan SMITH", "Chris THOMAS", "Tamirat TOLA",
+      "Alex YEE"
+    ) ~ "men",
+    
+    TRUE ~ NA_character_
+  ))
+
+
+
+saveRDS(elite2025, "elite2025.rds")
+
+LMAnalysisData <- LMAnalysisData %>% 
+  filter(year(raceDate) != 2025) %>% 
+  bind_rows(elite2025)
 
 
 
