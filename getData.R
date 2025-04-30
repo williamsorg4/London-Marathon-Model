@@ -717,11 +717,11 @@ wait_for_element <- function(using = 'css selector', value, timeout = 10) {
   stop(paste("Element not found with", using, ":", value))
 }
 
-#pastResults <- tibble()
-
-for (i in 1:length(allAthletes$page)) {
-  name <- allAthletes$Name[i]
-  page <- allAthletes$page[i]
+pastResults <- tibble()
+remDr$open()
+for (i in 23:length(elite2025$page)) {
+  name <- elite2025$Name[i]
+  page <- elite2025$page[i]
   
   remDr$navigate(paste0("https://worldathletics.org", page))
   
@@ -731,13 +731,13 @@ for (i in 1:length(allAthletes$page)) {
   statpage <- wait_for_element("css selector", ".athletesTabsButton_AthletesTabsButtonItem__1pPWF+ .athletesTabsButton_AthletesTabsButtonItem__1pPWF .athletesButton_underline__9GAM2")
   statpage$clickElement()
   
-  resultpage <- wait_for_element("css selector", ".athletesTabsButton_AthletesTabsButtonItem__1pPWF:nth-child(5) .athletesButton_athletesButton__1_h0o")
+  resultpage <- wait_for_element("css selector", ".athletesTabsButton_AthletesTabsButtonItem__1pPWF:nth-child(4) .athletesButton_athletesButton__1_h0o")
   resultpage$clickElement()
   
-  year_select <- wait_for_element("css selector", ".athletesSelectInput_athletesSelectContainer__3v2oU+ .athletesSelectInput_athletesSelectContainer__3v2oU .css-1hwfws3")
+  year_select <- wait_for_element("css selector", ".profileStatistics_results__1xala .athletesSelectInput_athletesSelectContainer__3v2oU:nth-child(1) .css-1clc8fh-control")
   year_select$clickElement()
   
-  yearlist_elem <- wait_for_element("css selector", "#__next > div:nth-child(4) > div > div > div.athletesStatsInfos_athletesStatsInfos__22gUO > div.athletesStatisticsTable_athletesStatisticsTable__3Eq1T.athletesStatsInfos_itemXL__2SfPY > div.athletesStatisticsTable_athletesStatisticsContent__dDNOs > div > div.profileStatistics_fullHeight__2Nn0b > div.profileStatistics_tabContent__vINmY.profileStatistics_active__1QQ9F.profileStatistics_results__1xala > div.profileStatistics_statsContainer__96c3m > div.profileStatistics_filterWidth__1B10f > div:nth-child(2) > div > div.athletesSelectInput__menu.css-1trz5dz-menu > div")
+  yearlist_elem <- wait_for_element("css selector", "#__next > div:nth-child(4) > div > div:nth-child(1) > div > div.athletesStatisticsTable_athletesStatisticsContent__dDNOs > div > div.profileStatistics_fullHeight__2Nn0b > div.profileStatistics_tabContent__vINmY.profileStatistics_active__1QQ9F.profileStatistics_results__1xala > div.profileStatistics_statsContainer__96c3m > div.profileStatistics_filterWidth__1B10f > div:nth-child(1) > div > div.athletesSelectInput__menu.css-1trz5dz-menu > div")
   yearlist <- yearlist_elem$getElementText()
   careerlength <- yearlist %>% str_split("\n") %>% unlist() %>% length()
   
@@ -792,8 +792,7 @@ for (i in 1:length(allAthletes$page)) {
       mutate(row = row_number()) %>% 
       mutate(name = name,
              dob = dob,
-             page = page,
-             .before = Discipline)
+             page = page)
     
     # temporary_invisible <- temporary_invisible %>% 
     #   mutate(row = row_number())
@@ -805,7 +804,7 @@ for (i in 1:length(allAthletes$page)) {
       bind_rows(resultTable)
     
     # Open Year selector for next iteration
-    year_select <- wait_for_element("css selector", ".athletesSelectInput_athletesSelectContainer__3v2oU+ .athletesSelectInput_athletesSelectContainer__3v2oU .css-1hwfws3")
+    year_select <- wait_for_element("css selector", ".profileStatistics_results__1xala .athletesSelectInput_athletesSelectContainer__3v2oU:nth-child(1) .css-1hwfws3")
     year_select$clickElement()
     Sys.sleep(1)
   }
@@ -813,3 +812,56 @@ for (i in 1:length(allAthletes$page)) {
 
 
 saveRDS(pastResults, "pastResults.rds")
+
+
+
+
+# Get 2025 Results After the Race -----------------------------------------------------------------------
+link <- "https://results.tcslondonmarathon.com/2025/?event=ELIT&num_results=100&pid=search&pidp=start&search%5Bsex%5D=%25&search%5Bage_class%5D=%25&search%5Bnation%5D=%25&search_sort=name"
+page <- read_html(link)
+
+table2025 <- tibble(
+  `Place gender` = page %>% 
+    html_nodes('.row+ .row .place-primary , .place-primary.numeric') %>% 
+    html_text() %>% 
+    as.integer(),
+  Name = page %>% 
+    html_nodes(".type-fullname a") %>% 
+    html_text(),
+  Finish = page %>% 
+    html_nodes(".row+ .row .pull-right .type-time") %>% 
+    html_text() %>% 
+    gsub("Finish", "", .),
+  link = page %>% 
+    html_nodes(".type-fullname a") %>% 
+    html_attr('href') %>% 
+    paste0("https://results.tcslondonmarathon.com/2025/", .)
+)
+
+
+raceStatuses <- c()
+for(link in table2025$link) {
+  page <- read_html(link)
+  
+  raceStatus <- page %>% 
+    html_node('.f-race_status_field.last') %>% 
+    html_text()
+  
+  raceStatuses <- append(raceStatuses, raceStatus)
+  
+}
+
+table2025$RaceStatus <- raceStatuses
+
+
+
+elite2025 <- table2025 %>% 
+  filter(RaceStatus != "–") %>%
+  separate(Name, into = c("Last", "rest"), sep = ", ", remove = TRUE) %>% 
+  separate(rest, into = c("First", "Country"), sep = " \\(", remove = TRUE) %>% 
+  mutate(
+    `Nat.` = str_remove(Country, "\\)"),
+    Name = paste(str_squish(First), str_squish(Last)),
+    date = ymd("2025-04-27")
+  ) %>% 
+  select(date, Name, `Nat.`, Finish, `Place gender`, RaceStatus, link)
